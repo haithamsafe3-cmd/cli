@@ -221,7 +221,19 @@ func (p *huhPrompter) InputHostname() (string, error) {
 	// 		return ghinstance.HostnameValidator(v.(string))
 	// 	}))
 	// return result, err
-	panic("not implemented")
+
+	var result string
+	form := p.newForm(
+		huh.NewGroup(
+			huh.NewInput().
+				Title("Hostname:").
+				Validate(ghinstance.HostnameValidator).
+				Value(&result),
+		),
+	)
+
+	err := form.Run()
+	return result, err
 }
 
 func (p *huhPrompter) MarkdownEditor(prompt, defaultValue string, blankAllowed bool) (string, error) {
