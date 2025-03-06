@@ -31,9 +31,10 @@ type Prompter interface {
 
 func New(editorCmd string, stdin ghPrompter.FileReader, stdout ghPrompter.FileWriter, stderr ghPrompter.FileWriter) Prompter {
 	return &huhPrompter{
-		stdin:  stdin,
-		stdout: stdout,
-		stderr: stderr,
+		stdin:     stdin,
+		stdout:    stdout,
+		stderr:    stderr,
+		editorCmd: editorCmd,
 	}
 	// return &surveyPrompter{
 	// 	prompter:  ghPrompter.New(stdin, stdout, stderr),
@@ -45,9 +46,10 @@ func New(editorCmd string, stdin ghPrompter.FileReader, stdout ghPrompter.FileWr
 }
 
 type huhPrompter struct {
-	stdin  ghPrompter.FileReader
-	stdout ghPrompter.FileWriter
-	stderr ghPrompter.FileWriter
+	stdin     ghPrompter.FileReader
+	stdout    ghPrompter.FileWriter
+	stderr    ghPrompter.FileWriter
+	editorCmd string
 }
 
 func (p *huhPrompter) newForm(groups ...*huh.Group) *huh.Form {
@@ -237,7 +239,55 @@ func (p *huhPrompter) InputHostname() (string, error) {
 }
 
 func (p *huhPrompter) MarkdownEditor(prompt, defaultValue string, blankAllowed bool) (string, error) {
-	panic("not implemented")
+	// var result string
+	// err := p.ask(&surveyext.GhEditor{
+	// 	BlankAllowed:  blankAllowed,
+	// 	EditorCommand: p.editorCmd,
+	// 	Editor: &survey.Editor{
+	// 		Message:       prompt,
+	// 		Default:       defaultValue,
+	// 		FileName:      "*.md",
+	// 		HideDefault:   true,
+	// 		AppendDefault: true,
+	// 	},
+	// }, &result)
+	// return result, err
+
+	var result string
+	form := p.newForm(
+		huh.NewGroup(
+			huh.NewSelect[string]().
+				Title(prompt).
+				Options(
+					huh.NewOption("Open Editor", "open"),
+					huh.NewOption("Skip", "skip"),
+				).
+				Value(&result),
+		),
+	)
+	if err := form.Run(); err != nil {
+		return "", err
+	}
+
+	if result == "skip" {
+		// TODO: loop if blank not allowed
+		if !blankAllowed && defaultValue == "" {
+			panic("blank not allowed and no default value")
+		}
+		return "", nil
+	}
+
+	text, err := surveyext.Edit(p.editorCmd, "*.md", defaultValue, p.stdin, p.stdout, p.stderr)
+	if err != nil {
+		return "", err
+	}
+
+	// TODO: blank not allowed
+	if !blankAllowed && defaultValue == "" {
+		panic("blank not allowed and no default value")
+	}
+
+	return text, nil
 }
 
 type surveyPrompter struct {
