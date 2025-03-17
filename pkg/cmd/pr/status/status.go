@@ -117,31 +117,15 @@ func statusRun(opts *StatusOptions) error {
 			if err != nil {
 				return err
 			}
-			// Suppressing these errors as we have other means of computing the PullRequestRefs when these fail.
-			var parsedPushRevision string
-			if trackingRef, err := opts.GitClient.PushRevision(ctx, currentBranchName); err == nil {
-				parsedPushRevision = trackingRef.String()
-			}
 
-			remotePushDefault, err := opts.GitClient.RemotePushDefault(ctx)
-			if err != nil {
-				return err
-			}
-
-			pushDefault, err := opts.GitClient.PushDefault(ctx)
-			if err != nil {
-				return err
-			}
-
-			prRefs, err := shared.ParsePRRefs(currentBranchName, branchConfig, parsedPushRevision, string(pushDefault), remotePushDefault, baseRefRepo, remotes)
+			prRefs, err := shared.ResolvePRRefs(gitClientWithCachedBranchConfig{
+				cachedBranchConfig: branchConfig,
+				Client:             opts.GitClient,
+			}, remotes, baseRefRepo, currentBranchName)
 			if err != nil {
 				return err
 			}
 			currentHeadRefBranchName = prRefs.BranchName
-		}
-
-		if err != nil {
-			return fmt.Errorf("could not query for pull request for current branch: %w", err)
 		}
 	}
 
@@ -321,4 +305,14 @@ func printPrs(io *iostreams.IOStreams, totalCount int, prs ...api.PullRequest) {
 	if remaining > 0 {
 		fmt.Fprintf(w, cs.Gray("  And %d more\n"), remaining)
 	}
+}
+
+// Since ResolvePRRefs also reads the branch config, let's just cache our previous read.
+type gitClientWithCachedBranchConfig struct {
+	cachedBranchConfig git.BranchConfig
+	*git.Client
+}
+
+func (c gitClientWithCachedBranchConfig) ReadBranchConfig(ctx context.Context, branchName string) (git.BranchConfig, error) {
+	return c.cachedBranchConfig, nil
 }

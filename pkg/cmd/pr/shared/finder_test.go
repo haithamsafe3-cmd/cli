@@ -1,13 +1,14 @@
 package shared
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
 	"testing"
 
-	"github.com/cli/cli/v2/context"
+	ghContext "github.com/cli/cli/v2/context"
 	"github.com/cli/cli/v2/git"
 	"github.com/cli/cli/v2/internal/ghrepo"
 	"github.com/cli/cli/v2/pkg/httpmock"
@@ -18,6 +19,7 @@ import (
 type args struct {
 	baseRepoFn        func() (ghrepo.Interface, error)
 	branchFn          func() (string, error)
+	gitConfigClient   stubGitConfigClient
 	branchConfig      func(string) (git.BranchConfig, error)
 	pushDefault       func() (git.PushDefault, error)
 	remotePushDefault func() (string, error)
@@ -33,14 +35,14 @@ func TestFind(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	remoteOrigin := context.Remote{
+	remoteOrigin := ghContext.Remote{
 		Remote: &git.Remote{
 			Name:     "origin",
 			FetchURL: originOwnerUrl,
 		},
 		Repo: ghrepo.New("ORIGINOWNER", "REPO"),
 	}
-	remoteOther := context.Remote{
+	remoteOther := ghContext.Remote{
 		Remote: &git.Remote{
 			Name:     "other",
 			FetchURL: originOwnerUrl,
@@ -52,7 +54,7 @@ func TestFind(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	remoteUpstream := context.Remote{
+	remoteUpstream := ghContext.Remote{
 		Remote: &git.Remote{
 			Name:     "upstream",
 			FetchURL: upstreamOwnerUrl,
@@ -78,7 +80,6 @@ func TestFind(t *testing.T) {
 				branchFn: func() (string, error) {
 					return "blueberries", nil
 				},
-				branchConfig: stubBranchConfig(git.BranchConfig{}, nil),
 			},
 			httpStub: func(r *httpmock.Registry) {
 				r.Register(
@@ -621,17 +622,44 @@ func TestFind(t *testing.T) {
 				tt.httpStub(reg)
 			}
 
+			// Shim the git config client
+			gitConfigClient := stubGitConfigClient{}
+			if tt.args.branchConfig != nil {
+				gitConfigClient.readBranchConfigFn = func(_ context.Context, branchName string) (git.BranchConfig, error) {
+					return tt.args.branchConfig(branchName)
+				}
+			}
+
+			if tt.args.pushDefault != nil {
+				gitConfigClient.pushDefaultFn = func(_ context.Context) (git.PushDefault, error) {
+					return tt.args.pushDefault()
+				}
+			}
+
+			if tt.args.remotePushDefault != nil {
+				gitConfigClient.remotePushDefaultFn = func(_ context.Context) (string, error) {
+					return tt.args.remotePushDefault()
+				}
+			}
+
+			if tt.args.parsePushRevision != nil {
+				gitConfigClient.pushRevisionFn = func(_ context.Context, ref string) (git.RemoteTrackingRef, error) {
+					return tt.args.parsePushRevision(ref)
+				}
+			}
+
 			f := finder{
 				httpClient: func() (*http.Client, error) {
 					return &http.Client{Transport: reg}, nil
 				},
 				baseRepoFn:        tt.args.baseRepoFn,
 				branchFn:          tt.args.branchFn,
+				gitConfigClient:   gitConfigClient,
 				branchConfig:      tt.args.branchConfig,
 				pushDefault:       tt.args.pushDefault,
 				remotePushDefault: tt.args.remotePushDefault,
 				parsePushRevision: tt.args.parsePushRevision,
-				remotesFn: stubRemotes(context.Remotes{
+				remotesFn: stubRemotes(ghContext.Remotes{
 					&remoteOrigin,
 					&remoteOther,
 					&remoteUpstream,
@@ -673,14 +701,14 @@ func TestParsePRRefs(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	remoteOrigin := context.Remote{
+	remoteOrigin := ghContext.Remote{
 		Remote: &git.Remote{
 			Name:     "origin",
 			FetchURL: originOwnerUrl,
 		},
 		Repo: ghrepo.New("ORIGINOWNER", "REPO"),
 	}
-	remoteOther := context.Remote{
+	remoteOther := ghContext.Remote{
 		Remote: &git.Remote{
 			Name:     "other",
 			FetchURL: originOwnerUrl,
@@ -692,7 +720,7 @@ func TestParsePRRefs(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	remoteUpstream := context.Remote{
+	remoteUpstream := ghContext.Remote{
 		Remote: &git.Remote{
 			Name:     "upstream",
 			FetchURL: upstreamOwnerUrl,
@@ -708,7 +736,7 @@ func TestParsePRRefs(t *testing.T) {
 		remotePushDefault  string
 		currentBranchName  string
 		baseRefRepo        ghrepo.Interface
-		rems               context.Remotes
+		rems               ghContext.Remotes
 		wantPRRefs         PullRequestRefs
 		wantErr            error
 	}{
@@ -741,7 +769,7 @@ func TestParsePRRefs(t *testing.T) {
 			parsedPushRevision: "refs/remotes/origin/pushBranch",
 			currentBranchName:  "blueberries",
 			baseRefRepo:        remoteOrigin.Repo,
-			rems: context.Remotes{
+			rems: ghContext.Remotes{
 				&remoteOrigin,
 			},
 			wantPRRefs: PullRequestRefs{
@@ -756,7 +784,7 @@ func TestParsePRRefs(t *testing.T) {
 			parsedPushRevision: "refs/remotes/origin/differentPushBranch",
 			currentBranchName:  "blueberries",
 			baseRefRepo:        remoteOrigin.Repo,
-			rems: context.Remotes{
+			rems: ghContext.Remotes{
 				&remoteUpstream,
 				&remoteOther,
 			},
@@ -768,7 +796,7 @@ func TestParsePRRefs(t *testing.T) {
 			parsedPushRevision: "refs/remotes/other/pushBranch",
 			currentBranchName:  "blueberries",
 			baseRefRepo:        remoteOrigin.Repo,
-			rems: context.Remotes{
+			rems: ghContext.Remotes{
 				&remoteOther,
 			},
 			wantPRRefs: PullRequestRefs{
@@ -785,7 +813,7 @@ func TestParsePRRefs(t *testing.T) {
 			},
 			currentBranchName: "blueberries",
 			baseRefRepo:       remoteOrigin.Repo,
-			rems: context.Remotes{
+			rems: ghContext.Remotes{
 				&remoteOrigin,
 				&remoteUpstream,
 			},
@@ -803,7 +831,7 @@ func TestParsePRRefs(t *testing.T) {
 			},
 			currentBranchName: "blueberries",
 			baseRefRepo:       remoteUpstream.Repo,
-			rems: context.Remotes{
+			rems: ghContext.Remotes{
 				&remoteOrigin,
 				&remoteUpstream,
 			},
@@ -821,7 +849,7 @@ func TestParsePRRefs(t *testing.T) {
 			},
 			currentBranchName: "blueberries",
 			baseRefRepo:       remoteUpstream.Repo,
-			rems: context.Remotes{
+			rems: ghContext.Remotes{
 				&remoteOrigin,
 				&remoteUpstream,
 			},
@@ -841,7 +869,7 @@ func TestParsePRRefs(t *testing.T) {
 			pushDefault:       "upstream",
 			currentBranchName: "blueberries",
 			baseRefRepo:       remoteOrigin.Repo,
-			rems: context.Remotes{
+			rems: ghContext.Remotes{
 				&remoteOrigin,
 				&remoteUpstream,
 			},
@@ -861,7 +889,7 @@ func TestParsePRRefs(t *testing.T) {
 			pushDefault:       "tracking",
 			currentBranchName: "blueberries",
 			baseRefRepo:       remoteOrigin.Repo,
-			rems: context.Remotes{
+			rems: ghContext.Remotes{
 				&remoteOrigin,
 				&remoteUpstream,
 			},
@@ -878,7 +906,7 @@ func TestParsePRRefs(t *testing.T) {
 			remotePushDefault: remoteUpstream.Remote.Name,
 			currentBranchName: "blueberries",
 			baseRefRepo:       remoteOrigin.Repo,
-			rems: context.Remotes{
+			rems: ghContext.Remotes{
 				&remoteOrigin,
 				&remoteUpstream,
 			},
@@ -896,7 +924,7 @@ func TestParsePRRefs(t *testing.T) {
 			},
 			currentBranchName: "blueberries",
 			baseRefRepo:       remoteOrigin.Repo,
-			rems: context.Remotes{
+			rems: ghContext.Remotes{
 				&remoteOrigin,
 				&remoteUpstream,
 			},
@@ -914,7 +942,7 @@ func TestParsePRRefs(t *testing.T) {
 			},
 			currentBranchName: "blueberries",
 			baseRefRepo:       remoteOrigin.Repo,
-			rems: context.Remotes{
+			rems: ghContext.Remotes{
 				&remoteOrigin,
 				&remoteUpstream,
 			},
@@ -1026,8 +1054,8 @@ func stubBranchConfig(branchConfig git.BranchConfig, err error) func(string) (gi
 	}
 }
 
-func stubRemotes(remotes context.Remotes, err error) func() (context.Remotes, error) {
-	return func() (context.Remotes, error) {
+func stubRemotes(remotes ghContext.Remotes, err error) func() (ghContext.Remotes, error) {
+	return func() (ghContext.Remotes, error) {
 		return remotes, err
 	}
 }
@@ -1054,4 +1082,39 @@ func stubParsedPushRevision(parsedPushRevision git.RemoteTrackingRef, err error)
 	return func(_ string) (git.RemoteTrackingRef, error) {
 		return parsedPushRevision, err
 	}
+}
+
+type stubGitConfigClient struct {
+	readBranchConfigFn  func(ctx context.Context, branchName string) (git.BranchConfig, error)
+	pushDefaultFn       func(ctx context.Context) (git.PushDefault, error)
+	remotePushDefaultFn func(ctx context.Context) (string, error)
+	pushRevisionFn      func(ctx context.Context, branchName string) (git.RemoteTrackingRef, error)
+}
+
+func (s stubGitConfigClient) ReadBranchConfig(ctx context.Context, branchName string) (git.BranchConfig, error) {
+	if s.readBranchConfigFn == nil {
+		panic("unexpected call to ReadBranchConfig")
+	}
+	return s.readBranchConfigFn(ctx, branchName)
+}
+
+func (s stubGitConfigClient) PushDefault(ctx context.Context) (git.PushDefault, error) {
+	if s.pushDefaultFn == nil {
+		panic("unexpected call to PushDefault")
+	}
+	return s.pushDefaultFn(ctx)
+}
+
+func (s stubGitConfigClient) RemotePushDefault(ctx context.Context) (string, error) {
+	if s.remotePushDefaultFn == nil {
+		panic("unexpected call to RemotePushDefault")
+	}
+	return s.remotePushDefaultFn(ctx)
+}
+
+func (s stubGitConfigClient) PushRevision(ctx context.Context, branchName string) (git.RemoteTrackingRef, error) {
+	if s.pushRevisionFn == nil {
+		panic("unexpected call to PushRevision")
+	}
+	return s.pushRevisionFn(ctx, branchName)
 }

@@ -622,24 +622,10 @@ func NewCreateContext(opts *CreateOptions) (*CreateContext, error) {
 		return nil, err
 	}
 
-	// See if we can determine if this branch has been push previously with
-	// Git configurations and @{push} revision syntax.
-	remotePushDefault, err := opts.GitClient.RemotePushDefault(ctx)
-	if err != nil {
-		return nil, err
-	}
-	// Suppressing these errors as we have other means of computing the PullRequestRefs when these fail.
-	var parsedPushRevision string
-	if trackingRef, err := gitClient.PushRevision(ctx, targetHeadBranch); err == nil {
-		parsedPushRevision = trackingRef.String()
-	}
-
-	pushDefault, err := gitClient.PushDefault(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	prRefs, err := shared.ParsePRRefs(targetHeadBranch, targetHeadBranchConfig, parsedPushRevision, string(pushDefault), remotePushDefault, targetBaseRepo, remotes)
+	prRefs, err := shared.ResolvePRRefs(gitClientWithCachedBranchConfig{
+		cachedBranchConfig: targetHeadBranchConfig,
+		Client:             gitClient,
+	}, remotes, targetBaseRepo, targetHeadBranch)
 	if err != nil {
 		return nil, err
 	}
@@ -1083,3 +1069,13 @@ func requestableReviewersForCompletion(opts *CreateOptions) ([]string, error) {
 }
 
 var gitPushRegexp = regexp.MustCompile("^remote: (Create a pull request.*by visiting|[[:space:]]*https://.*/pull/new/).*\n?$")
+
+// Since ResolvePRRefs also reads the branch config, let's just cache our previous read.
+type gitClientWithCachedBranchConfig struct {
+	cachedBranchConfig git.BranchConfig
+	*git.Client
+}
+
+func (c gitClientWithCachedBranchConfig) ReadBranchConfig(ctx context.Context, branchName string) (git.BranchConfig, error) {
+	return c.cachedBranchConfig, nil
+}

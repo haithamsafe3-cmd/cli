@@ -861,8 +861,6 @@ func Test_createRun(t *testing.T) {
 				deadb00f refs/remotes/upstream/feature
 				deadbeef refs/remotes/origin/feature`))
 				cs.Register("git rev-parse --symbolic-full-name feature@{push}", 0, "refs/remotes/origin/feature")
-				cs.Register("git config remote.pushDefault", 0, "")
-				cs.Register("git config push.default", 1, "")
 			},
 			expectedOut:    "https://github.com/OWNER/REPO/pull/12\n",
 			expectedErrOut: "\nCreating pull request for monalisa:feature into master in OWNER/REPO\n\n",
@@ -902,8 +900,6 @@ func Test_createRun(t *testing.T) {
 			deadbeef refs/remotes/origin/my-feat2
 		`)) // determineTrackingBranch
 				cs.Register("git rev-parse --symbolic-full-name feature@{push}", 0, "refs/remotes/origin/my-feat2")
-				cs.Register("git config remote.pushDefault", 0, "")
-				cs.Register("git config push.default", 1, "")
 			},
 			expectedOut:    "https://github.com/OWNER/REPO/pull/12\n",
 			expectedErrOut: "\nCreating pull request for my-feat2 into master in OWNER/REPO\n\n",
@@ -1540,8 +1536,6 @@ func Test_createRun(t *testing.T) {
 					deadb00f refs/remotes/upstream/feature/feat2
 					deadbeef refs/remotes/origin/task1`)) // determineTrackingBranch
 				cs.Register("git rev-parse --symbolic-full-name task1@{push}", 0, "refs/remotes/origin/task1")
-				cs.Register("git config remote.pushDefault", 0, "")
-				cs.Register("git config push.default", 1, "")
 			},
 			expectedOut:    "https://github.com/OWNER/REPO/pull/12\n",
 			expectedErrOut: "\nCreating pull request for monalisa:task1 into feature/feat2 in OWNER/REPO\n\n",
@@ -1574,8 +1568,6 @@ func Test_createRun(t *testing.T) {
 			customPushDestination: true,
 			cmdStubs: func(cs *run.CommandStubber) {
 				cs.Register("git rev-parse --symbolic-full-name feature@{push}", 0, "refs/remotes/origin/feature")
-				cs.Register("git config remote.pushDefault", 0, "")
-				cs.Register("git config push.default", 1, "")
 			},
 			expectedOut: "https://github.com/OWNER/REPO/pull/12\n",
 		},
@@ -1605,8 +1597,6 @@ func Test_createRun(t *testing.T) {
 			if !tt.customPushDestination {
 				cs.Register(`git show-ref --verify -- HEAD refs/remotes/origin/feature`, 0, "")
 				cs.Register("git rev-parse --symbolic-full-name feature@{push}", 0, "refs/remotes/origin/feature")
-				cs.Register("git config remote.pushDefault", 0, "")
-				cs.Register("git config push.default", 1, "")
 			}
 			if !tt.customBranchConfig {
 				cs.Register(`git config --get-regexp \^branch\\\..+\\\.\(remote\|merge\|pushremote\|gh-merge-base\)\$`, 0, "")

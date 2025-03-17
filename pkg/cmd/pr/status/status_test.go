@@ -98,9 +98,9 @@ func TestPRStatus(t *testing.T) {
 	// stub successful git commands
 	rs, cleanup := run.Stub()
 	defer cleanup(t)
+	rs.Register(`git rev-parse --symbolic-full-name blueberries@{push}`, 128, "")
 	rs.Register(`git config --get-regexp \^branch\\.`, 0, "")
 	rs.Register(`git config remote.pushDefault`, 0, "")
-	rs.Register(`git rev-parse --symbolic-full-name blueberries@{push}`, 128, "")
 	rs.Register(`git config push.default`, 1, "")
 
 	output, err := runCommand(http, "blueberries", true, "")
