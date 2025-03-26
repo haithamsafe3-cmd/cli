@@ -48,6 +48,10 @@ func NewQualifiedHeadRefWithoutOwner(branchName string) QualifiedHeadRef {
 // the owner is set to the value of <owner>, and the branch name is set to
 // the value of <branch>. If the form <branch> is used, the owner is set to
 // None, and the branch name is set to the value of <branch>.
+//
+// This does no further error checking about the validity of a ref, so
+// it is not safe to assume the ref is truly a valid ref, e.g. "my~bad:ref?"
+// is going to result in a nonsense result.
 func ParseQualifiedHeadRef(ref string) (QualifiedHeadRef, error) {
 	if !strings.Contains(ref, ":") {
 		return QualifiedHeadRef{
@@ -55,9 +59,9 @@ func ParseQualifiedHeadRef(ref string) (QualifiedHeadRef, error) {
 			branchName: ref,
 		}, nil
 	}
-	parts := strings.SplitN(ref, ":", 2)
+	parts := strings.Split(ref, ":")
 	if len(parts) != 2 {
-		return QualifiedHeadRef{}, fmt.Errorf("invalid qualified ref %q", ref)
+		return QualifiedHeadRef{}, fmt.Errorf("invalid qualified head ref format '%s'", ref)
 	}
 
 	return QualifiedHeadRef{
