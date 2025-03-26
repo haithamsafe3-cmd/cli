@@ -980,8 +980,6 @@ func submitPR(opts CreateOptions, ctx CreateContext, state shared.IssueMetadataS
 	}
 
 	opts.IO.StartProgressIndicator()
-	// At this point, ctx.PrRefs.BaseRef.Repo is guaranteed to be an *api.Repository
-	// because of https://github.com/cli/cli/blob/d29db2d44199ad4a987ea866f3f4ff601b1c90a0/pkg/cmd/pr/create/create.go#L578-L592
 	pr, err := api.CreatePullRequest(client, ctx.PRRefs.BaseRepo(), params)
 	opts.IO.StopProgressIndicator()
 	if pr != nil {
