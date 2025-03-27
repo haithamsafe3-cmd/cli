@@ -13,7 +13,7 @@ import (
 	o "github.com/cli/cli/v2/pkg/option"
 )
 
-// QualifiedHeadRef represents a git branch with an optional owner, used as
+// QualifiedHeadRef represents a git branch with an optional owner, used
 // for the head of a pull request. For example, within a single repository,
 // we would expect a PR to have a head ref of no owner, and a branch name.
 // However, for cross-repository pull requests, we would expect a head ref
