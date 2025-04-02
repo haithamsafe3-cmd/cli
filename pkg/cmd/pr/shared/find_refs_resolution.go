@@ -54,20 +54,15 @@ func NewQualifiedHeadRefWithoutOwner(branchName string) QualifiedHeadRef {
 // is going to result in a nonsense result.
 func ParseQualifiedHeadRef(ref string) (QualifiedHeadRef, error) {
 	if !strings.Contains(ref, ":") {
-		return QualifiedHeadRef{
-			owner:      o.None[string](),
-			branchName: ref,
-		}, nil
+		return NewQualifiedHeadRefWithoutOwner(ref), nil
 	}
+
 	parts := strings.Split(ref, ":")
 	if len(parts) != 2 {
 		return QualifiedHeadRef{}, fmt.Errorf("invalid qualified head ref format '%s'", ref)
 	}
 
-	return QualifiedHeadRef{
-		owner:      o.Some(parts[0]),
-		branchName: parts[1],
-	}, nil
+	return NewQualifiedHeadRef(parts[0], parts[1]), nil
 }
 
 // A QualifiedHeadRef without an owner returns <branch>, while a QualifiedHeadRef
