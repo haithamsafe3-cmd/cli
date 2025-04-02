@@ -123,11 +123,11 @@ type RemoteNameToRepoFn func(remoteName string) (ghrepo.Interface, error)
 // PullRequestFindRefsResolver interrogates git configuration to try and determine
 // a head repository and a remote branch name, from a local branch name.
 type PullRequestFindRefsResolver struct {
-	GitConfigClient    gitConfigClient
+	GitConfigClient    GitConfigClient
 	RemoteNameToRepoFn RemoteNameToRepoFn
 }
 
-func NewPullRequestFindRefsResolver(gitConfigClient gitConfigClient, remotesFn func() (ghContext.Remotes, error)) PullRequestFindRefsResolver {
+func NewPullRequestFindRefsResolver(gitConfigClient GitConfigClient, remotesFn func() (ghContext.Remotes, error)) PullRequestFindRefsResolver {
 	return PullRequestFindRefsResolver{
 		GitConfigClient:    gitConfigClient,
 		RemoteNameToRepoFn: newRemoteNameToRepoFn(remotesFn),
@@ -187,7 +187,7 @@ type DefaultPRHead struct {
 // TryDetermineDefaultPRHead is a thin wrapper around determineDefaultPushTarget, which attempts to convert
 // a present remote into a resolved repository. If the remote is not present, we indicate that to the caller
 // by returning a None value for the repo.
-func TryDetermineDefaultPRHead(gitClient gitConfigClient, remoteToRepo remoteToRepoResolver, branch string) (DefaultPRHead, error) {
+func TryDetermineDefaultPRHead(gitClient GitConfigClient, remoteToRepo remoteToRepoResolver, branch string) (DefaultPRHead, error) {
 	pushTarget, err := tryDetermineDefaultPushTarget(gitClient, branch)
 	if err != nil {
 		return DefaultPRHead{}, err
@@ -321,7 +321,7 @@ func newDefaultPushTarget(remote remote, branchName string) defaultPushTarget {
 // The branch name is always set. The deafult configuration for push.default (current) indicates
 // that a git push should use the same remote branch name as the local branch name. If push.default
 // is set to upstream or tracking (deprecated form of upstream), then we use the branch name from the merge ref.
-func tryDetermineDefaultPushTarget(gitClient gitConfigClient, localBranchName string) (defaultPushTarget, error) {
+func tryDetermineDefaultPushTarget(gitClient GitConfigClient, localBranchName string) (defaultPushTarget, error) {
 	// If @{push} resolves, then we have the remote tracking branch already, no problem.
 	if pushRevisionRef, err := gitClient.PushRevision(context.Background(), localBranchName); err == nil {
 		return newDefaultPushTarget(remoteName{pushRevisionRef.Remote}, pushRevisionRef.Branch), nil

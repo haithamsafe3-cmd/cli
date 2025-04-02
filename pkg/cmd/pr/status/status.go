@@ -115,9 +115,10 @@ func statusRun(opts *StatusOptions) error {
 
 			if currentPRNumber == 0 {
 				prRefsResolver := shared.NewPullRequestFindRefsResolver(
-					gitClientWithCachedBranchConfig{
-						cachedBranchConfig: branchConfig,
-						Client:             opts.GitClient,
+					// We requested the branch config already, so let's cache that
+					shared.CachedBranchConfigGitConfigClient{
+						CachedBranchConfig: branchConfig,
+						GitConfigClient:    opts.GitClient,
 					},
 					opts.Remotes,
 				)
@@ -308,14 +309,4 @@ func printPrs(io *iostreams.IOStreams, totalCount int, prs ...api.PullRequest) {
 	if remaining > 0 {
 		fmt.Fprintf(w, cs.Gray("  And %d more\n"), remaining)
 	}
-}
-
-// Since ResolvePRRefs also reads the branch config, let's just cache our previous read.
-type gitClientWithCachedBranchConfig struct {
-	cachedBranchConfig git.BranchConfig
-	*git.Client
-}
-
-func (c gitClientWithCachedBranchConfig) ReadBranchConfig(ctx context.Context, branchName string) (git.BranchConfig, error) {
-	return c.cachedBranchConfig, nil
 }

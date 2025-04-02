@@ -33,7 +33,7 @@ type progressIndicator interface {
 	StopProgressIndicator()
 }
 
-type gitConfigClient interface {
+type GitConfigClient interface {
 	ReadBranchConfig(ctx context.Context, branchName string) (git.BranchConfig, error)
 	PushDefault(ctx context.Context) (git.PushDefault, error)
 	RemotePushDefault(ctx context.Context) (string, error)
@@ -45,7 +45,7 @@ type finder struct {
 	branchFn        func() (string, error)
 	httpClient      func() (*http.Client, error)
 	remotesFn       func() (ghContext.Remotes, error)
-	gitConfigClient gitConfigClient
+	gitConfigClient GitConfigClient
 	progress        progressIndicator
 
 	baseRefRepo ghrepo.Interface
@@ -135,9 +135,10 @@ func (f *finder) Find(opts FindOptions) (*api.PullRequest, ghrepo.Interface, err
 		// Determine the PullRequestRefs from config
 		if f.prNumber == 0 {
 			prRefsResolver := NewPullRequestFindRefsResolver(
-				gitClientWithCachedBranchConfig{
-					cachedBranchConfig: branchConfig,
-					gitConfigClient:    f.gitConfigClient,
+				// We requested the branch config already, so let's cache that
+				CachedBranchConfigGitConfigClient{
+					CachedBranchConfig: branchConfig,
+					GitConfigClient:    f.gitConfigClient,
 				},
 				f.remotesFn,
 			)
@@ -579,14 +580,4 @@ func isEqualSet(a, b []string) bool {
 		}
 	}
 	return true
-}
-
-// Since ResolvePRRefs also reads the branch config, let's just cache our previous read.
-type gitClientWithCachedBranchConfig struct {
-	cachedBranchConfig git.BranchConfig
-	gitConfigClient
-}
-
-func (c gitClientWithCachedBranchConfig) ReadBranchConfig(ctx context.Context, branchName string) (git.BranchConfig, error) {
-	return c.cachedBranchConfig, nil
 }

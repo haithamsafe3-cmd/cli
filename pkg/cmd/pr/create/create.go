@@ -763,9 +763,10 @@ func NewCreateContext(opts *CreateOptions) (*CreateContext, error) {
 	// First we check with the git information we have to see if we can figure out the default
 	// head repo and remote branch name.
 	defaultPRHead, err := shared.TryDetermineDefaultPRHead(
-		&gitClientWithCachedBranchConfig{
-			cachedBranchConfig: branchConfig,
-			Client:             opts.GitClient,
+		// We requested the branch config already, so let's cache that
+		shared.CachedBranchConfigGitConfigClient{
+			CachedBranchConfig: branchConfig,
+			GitConfigClient:    opts.GitClient,
 		},
 		shared.NewRemoteToRepoResolver(opts.Remotes),
 		currentBranch,
@@ -1258,13 +1259,3 @@ func requestableReviewersForCompletion(opts *CreateOptions) ([]string, error) {
 }
 
 var gitPushRegexp = regexp.MustCompile("^remote: (Create a pull request.*by visiting|[[:space:]]*https://.*/pull/new/).*\n?$")
-
-// Since ResolvePRRefs also reads the branch config, let's just cache our previous read.
-type gitClientWithCachedBranchConfig struct {
-	cachedBranchConfig git.BranchConfig
-	*git.Client
-}
-
-func (c gitClientWithCachedBranchConfig) ReadBranchConfig(ctx context.Context, branchName string) (git.BranchConfig, error) {
-	return c.cachedBranchConfig, nil
-}
