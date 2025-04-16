@@ -30,7 +30,7 @@ func Test_NewCmdLock(t *testing.T) {
 			args: "--reason off_topic 451",
 			want: LockOptions{
 				Reason:      "off_topic",
-				SelectorArg: "451",
+				IssueNumber: 451,
 			},
 		},
 		{
@@ -41,7 +41,7 @@ func Test_NewCmdLock(t *testing.T) {
 			name: "no flags",
 			args: "451",
 			want: LockOptions{
-				SelectorArg: "451",
+				IssueNumber: 451,
 			},
 		},
 		{
@@ -60,7 +60,7 @@ func Test_NewCmdLock(t *testing.T) {
 			args: "451",
 			tty:  true,
 			want: LockOptions{
-				SelectorArg: "451",
+				IssueNumber: 451,
 				Interactive: true,
 			},
 		},
@@ -99,7 +99,7 @@ func Test_NewCmdLock(t *testing.T) {
 			}
 
 			assert.Equal(t, tt.want.Reason, opts.Reason)
-			assert.Equal(t, tt.want.SelectorArg, opts.SelectorArg)
+			assert.Equal(t, tt.want.IssueNumber, opts.IssueNumber)
 			assert.Equal(t, tt.want.Interactive, opts.Interactive)
 		})
 	}
@@ -121,7 +121,7 @@ func Test_NewCmdUnlock(t *testing.T) {
 			name: "no flags",
 			args: "451",
 			want: LockOptions{
-				SelectorArg: "451",
+				IssueNumber: 451,
 			},
 		},
 	}
@@ -158,7 +158,7 @@ func Test_NewCmdUnlock(t *testing.T) {
 				assert.NoError(t, err)
 			}
 
-			assert.Equal(t, tt.want.SelectorArg, opts.SelectorArg)
+			assert.Equal(t, tt.want.IssueNumber, opts.IssueNumber)
 		})
 	}
 }
@@ -179,7 +179,7 @@ func Test_runLock(t *testing.T) {
 			name:  "lock issue nontty",
 			state: Lock,
 			opts: LockOptions{
-				SelectorArg: "451",
+				IssueNumber: 451,
 				ParentCmd:   "issue",
 			},
 			httpStubs: func(t *testing.T, reg *httpmock.Registry) {
@@ -203,7 +203,7 @@ func Test_runLock(t *testing.T) {
 			tty:  true,
 			opts: LockOptions{
 				Interactive: true,
-				SelectorArg: "451",
+				IssueNumber: 451,
 				ParentCmd:   "issue",
 			},
 			state: Lock,
@@ -241,7 +241,7 @@ func Test_runLock(t *testing.T) {
 			tty:   true,
 			state: Lock,
 			opts: LockOptions{
-				SelectorArg: "451",
+				IssueNumber: 451,
 				ParentCmd:   "issue",
 				Reason:      "off_topic",
 			},
@@ -268,7 +268,7 @@ func Test_runLock(t *testing.T) {
 			tty:   true,
 			state: Unlock,
 			opts: LockOptions{
-				SelectorArg: "451",
+				IssueNumber: 451,
 				ParentCmd:   "issue",
 			},
 			httpStubs: func(t *testing.T, reg *httpmock.Registry) {
@@ -294,7 +294,7 @@ func Test_runLock(t *testing.T) {
 			name:  "unlock issue nontty",
 			state: Unlock,
 			opts: LockOptions{
-				SelectorArg: "451",
+				IssueNumber: 451,
 				ParentCmd:   "issue",
 			},
 			httpStubs: func(t *testing.T, reg *httpmock.Registry) {
@@ -319,7 +319,7 @@ func Test_runLock(t *testing.T) {
 			name:  "lock issue with explicit reason nontty",
 			state: Lock,
 			opts: LockOptions{
-				SelectorArg: "451",
+				IssueNumber: 451,
 				ParentCmd:   "issue",
 				Reason:      "off_topic",
 			},
@@ -344,7 +344,7 @@ func Test_runLock(t *testing.T) {
 			name:  "relock issue tty",
 			state: Lock,
 			opts: LockOptions{
-				SelectorArg: "451",
+				IssueNumber: 451,
 				ParentCmd:   "issue",
 				Reason:      "off_topic",
 			},
@@ -388,7 +388,7 @@ func Test_runLock(t *testing.T) {
 			name:  "relock issue nontty",
 			state: Lock,
 			opts: LockOptions{
-				SelectorArg: "451",
+				IssueNumber: 451,
 				ParentCmd:   "issue",
 				Reason:      "off_topic",
 			},
@@ -409,7 +409,7 @@ func Test_runLock(t *testing.T) {
 			name:  "lock pr nontty",
 			state: Lock,
 			opts: LockOptions{
-				SelectorArg: "451",
+				IssueNumber: 451,
 				ParentCmd:   "pr",
 			},
 			httpStubs: func(t *testing.T, reg *httpmock.Registry) {
@@ -433,7 +433,7 @@ func Test_runLock(t *testing.T) {
 			tty:  true,
 			opts: LockOptions{
 				Interactive: true,
-				SelectorArg: "451",
+				IssueNumber: 451,
 				ParentCmd:   "pr",
 			},
 			state: Lock,
@@ -469,7 +469,7 @@ func Test_runLock(t *testing.T) {
 			tty:   true,
 			state: Lock,
 			opts: LockOptions{
-				SelectorArg: "451",
+				IssueNumber: 451,
 				ParentCmd:   "pr",
 				Reason:      "off_topic",
 			},
@@ -495,7 +495,7 @@ func Test_runLock(t *testing.T) {
 			name:  "lock pr with explicit nontty",
 			state: Lock,
 			opts: LockOptions{
-				SelectorArg: "451",
+				IssueNumber: 451,
 				ParentCmd:   "pr",
 				Reason:      "off_topic",
 			},
@@ -520,7 +520,7 @@ func Test_runLock(t *testing.T) {
 			name:  "unlock pr tty",
 			state: Unlock,
 			opts: LockOptions{
-				SelectorArg: "451",
+				IssueNumber: 451,
 				ParentCmd:   "pr",
 			},
 			httpStubs: func(t *testing.T, reg *httpmock.Registry) {
@@ -546,7 +546,7 @@ func Test_runLock(t *testing.T) {
 			tty:   true,
 			state: Unlock,
 			opts: LockOptions{
-				SelectorArg: "451",
+				IssueNumber: 451,
 				ParentCmd:   "pr",
 			},
 			httpStubs: func(t *testing.T, reg *httpmock.Registry) {
@@ -572,7 +572,7 @@ func Test_runLock(t *testing.T) {
 			name:  "relock pr tty",
 			state: Lock,
 			opts: LockOptions{
-				SelectorArg: "451",
+				IssueNumber: 451,
 				ParentCmd:   "pr",
 				Reason:      "off_topic",
 			},
@@ -616,7 +616,7 @@ func Test_runLock(t *testing.T) {
 			name:  "relock pr nontty",
 			state: Lock,
 			opts: LockOptions{
-				SelectorArg: "451",
+				IssueNumber: 451,
 				ParentCmd:   "pr",
 				Reason:      "off_topic",
 			},
