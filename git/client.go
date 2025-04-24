@@ -519,14 +519,24 @@ func (r RemoteTrackingRef) String() string {
 // ParseRemoteTrackingRef parses a string of the form "refs/remotes/<remote>/<branch>" into
 // a RemoteTrackingBranch struct. If the string does not match this format, an error is returned.
 func ParseRemoteTrackingRef(s string) (RemoteTrackingRef, error) {
-	parts := strings.Split(s, "/")
-	if len(parts) != 4 || parts[0] != "refs" || parts[1] != "remotes" {
+	prefix := "refs/remotes/"
+	if !strings.HasPrefix(s, prefix) {
+		return RemoteTrackingRef{}, fmt.Errorf("remote tracking branch must have format refs/remotes/<remote>/<branch> but was: %s", s)
+	}
+
+	// For now, we assume that refnames are of the format "<remote>/<branch>", where
+	// the remote is a single path component, and branch may have many path components e.g.
+	// "origin/my/branch" is valid as: {Remote: "origin", Branch: "my/branch"}
+	// but "my/origin/branch" would parse incorrectly as: {Remote: "my", Branch: "origin/branch"}
+	refName := strings.TrimPrefix(s, prefix)
+	refNameParts := strings.SplitN(refName, "/", 2)
+	if len(refNameParts) != 2 {
 		return RemoteTrackingRef{}, fmt.Errorf("remote tracking branch must have format refs/remotes/<remote>/<branch> but was: %s", s)
 	}
 
 	return RemoteTrackingRef{
-		Remote: parts[2],
-		Branch: parts[3],
+		Remote: refNameParts[0],
+		Branch: refNameParts[1],
 	}, nil
 }
 
