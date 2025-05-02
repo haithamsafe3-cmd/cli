@@ -166,6 +166,22 @@ func (r forkableRefs) UnqualifiedHeadRef() string {
 	return r.qualifiedHeadRef.BranchName()
 }
 
+func shouldFork(refs creationRefs) (forkableRefs, bool) {
+	forkable, ok := refs.(forkableRefs)
+	if !ok {
+		return forkableRefs{}, false
+	}
+	return forkable, true
+}
+
+func shouldPush(refs creationRefs) (pushableRefs, bool) {
+	pushable, ok := refs.(pushableRefs)
+	if !ok {
+		return pushableRefs{}, false
+	}
+	return pushable, true
+}
+
 // CreateContext stores contextual data about the creation process and is for building up enough
 // data to create a pull request.
 type CreateContext struct {
@@ -1113,8 +1129,8 @@ func previewPR(opts CreateOptions, openURL string) error {
 
 func handlePush(opts CreateOptions, ctx CreateContext) error {
 	refs := ctx.PRRefs
-	forkableRefs, requiresFork := refs.(forkableRefs)
-	if requiresFork {
+	forkableRefs, shouldFork := shouldFork(refs)
+	if shouldFork {
 		opts.IO.StartProgressIndicator()
 		forkedRepo, err := api.ForkRepo(ctx.Client, forkableRefs.BaseRepo(), "", "", false)
 		opts.IO.StopProgressIndicator()
@@ -1134,8 +1150,8 @@ func handlePush(opts CreateOptions, ctx CreateContext) error {
 
 	// We may have upcast to pushableRefs on fork, or we may have been passed an instance
 	// already. But if we haven't, then there's nothing more to do.
-	pushableRefs, ok := refs.(pushableRefs)
-	if !ok {
+	pushableRefs, shouldPush := shouldPush(refs)
+	if !shouldPush {
 		return nil
 	}
 
@@ -1191,7 +1207,7 @@ func handlePush(opts CreateOptions, ctx CreateContext) error {
 		fmt.Fprintf(opts.IO.ErrOut, "Added %s as remote %q\n", ghrepo.FullName(pushableRefs.HeadRepo()), remoteName)
 
 		// Only mark `upstream` remote as default if `gh pr create` created the remote.
-		if requiresFork {
+		if shouldFork {
 			err := gitClient.SetRemoteResolution(context.Background(), upstreamName, "base")
 			if err != nil {
 				return fmt.Errorf("error setting upstream as default: %w", err)
@@ -1219,7 +1235,7 @@ func handlePush(opts CreateOptions, ctx CreateContext) error {
 		return backoff.Retry(func() error {
 			if err := ctx.GitClient.Push(root, headRemote.Name, ref, git.WithStderr(w)); err != nil {
 				// Only retry if we have forked the repo else the push should succeed the first time.
-				if requiresFork {
+				if shouldFork {
 					fmt.Fprintf(opts.IO.ErrOut, "waiting 2 seconds before retrying...\n")
 					return err
 				}
